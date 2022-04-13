@@ -1,14 +1,13 @@
+
 # Import relevant libraries
-import os
 import keras
 from keras.regularizers import l1
 import numpy as np
-import tensorflow as tf
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, Dense, Dropout, Activation, TimeDistributed
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, BatchNormalization, Flatten, AveragePooling2D
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, BatchNormalization, Flatten
 from tensorflow.keras.layers import LSTM, Bidirectional, Concatenate, Dot, Softmax, Lambda
-from tensorflow.keras.optimizers import Adam, SGD, RMSprop
+from tensorflow.keras.optimizers import Adam
 
 
 # Function to create the model
@@ -74,14 +73,14 @@ def create_model(X_train, y_train, model_type, last_layer=True):
 
     # FC layer
     if last_layer:
+        # The classification layer
         y = Dense(y_train.shape[1], activation='softmax', name='FC')(context_vector)
     else:
+        # Skipping the last layer in favor of T-SNE visualization
         y = context_vector
 
     # Build final model
     model = Model(inputs=input_y, outputs=y)
-    # opt = SGD(lr=0.01, decay=1e-6, momentum=0.99)
-    # opt = RMSprop(learning_rate=0.0001, rho=0.9, momentum=0.0, decay=1e-6)
     opt = Adam(learning_rate=0.0001)
     model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=['accuracy'])
 
