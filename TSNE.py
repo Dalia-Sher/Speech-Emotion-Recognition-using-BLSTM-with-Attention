@@ -1,5 +1,4 @@
 
-from preprocessing import extract_get_audio_features, extract_mel_spect
 from model import create_model
 import pickle
 import librosa
@@ -15,6 +14,36 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
+def extract_mel_spect_TSNE(y, sr=16000, n_fft=512, win_length=256, hop_length=128, window='hamming', fmax=4000):
+    # Compute stft
+    stft = np.abs(librosa.stft(y, n_fft=n_fft, window=window, win_length=win_length, hop_length=hop_length)) ** 2
+
+    # Compute log-mel spectrogram - 128
+    mel_spect = librosa.feature.melspectrogram(S=stft, sr=sr, n_mels=128, fmax=fmax)
+    mel_spect = librosa.power_to_db(mel_spect, ref=np.max)
+
+    return np.mean(mel_spect,1)
+
+
+def extract_get_audio_features_TSNE(y, sr=16000, frame_length=512):
+    spectral_centroid = librosa.feature.spectral_centroid(y=y, sr=sr, hop_length=frame_length)
+    spectral_contrast = librosa.feature.spectral_contrast(y=y, sr=sr, hop_length=frame_length)
+    spectral_bandwidth = librosa.feature.spectral_bandwidth(y=y, sr=sr, hop_length=frame_length)
+    spectral_rolloff = librosa.feature.spectral_rolloff(y=y, sr=sr, hop_length=frame_length)
+    zero_crossing_rate = librosa.feature.zero_crossing_rate(y, hop_length=frame_length)
+    S, phase = librosa.magphase(librosa.stft(y=y, hop_length=frame_length))
+    rms = librosa.feature.rms(y=y, hop_length=frame_length, S=S)
+    mfcc = librosa.feature.mfcc(y=y, sr=sr, hop_length=frame_length)
+    mfcc_der = librosa.feature.delta(mfcc)
+
+    feature_vector = np.concatenate((np.mean(spectral_centroid,1), np.mean(spectral_contrast,1), np.mean(rms,1),
+                                     np.mean(spectral_bandwidth,1), np.mean(spectral_rolloff,1), np.mean(mfcc,1),
+                                     np.mean(zero_crossing_rate,1), np.mean(mfcc_der,1)))
+
+    return feature_vector
+
+
+# TSNE - for features
 def TSNE_features(args):
 
     if args.dataset == 'IEMOCAP':
@@ -32,35 +61,37 @@ def TSNE_features(args):
 
     print(df.head())
 
-    feature_vectors = []
-    sound_paths = []
-    for i, f in enumerate(df.path):
-        if i % 100 == 0:
-            print("get %d of %d = %s" % (i + 1, len(df.path), f))
-        y, sr = librosa.load(f)
+    if args.create_TSNE_data == 'YES':
+        feature_vectors = []
+        sound_paths = []
+        for i, f in enumerate(df.path):
+            if i % 100 == 0:
+                print("get %d of %d = %s" % (i + 1, len(df.path), f))
+            y, sr = librosa.load(f)
+
+            if args.dataset == 'IEMOCAP':
+                feat = extract_get_audio_features_TSNE(y)
+            elif args.dataset == 'RAVDESS':
+                feat = extract_mel_spect_TSNE(y)
+
+            feature_vectors.append(feat)
+            sound_paths.append(f)
 
         if args.dataset == 'IEMOCAP':
-            feat = extract_get_audio_features(y)
+            with open('data/feature_vectors_IEMOCAP.pickle', 'wb') as f:
+                pickle.dump(feature_vectors, f)
+
         elif args.dataset == 'RAVDESS':
-            feat = extract_mel_spect(y)
+            with open('data/feature_vectors_RAV.pickle', 'wb') as f:
+                pickle.dump(feature_vectors, f)
 
-        feature_vectors.append(feat)
-        sound_paths.append(f)
-
-    if args.dataset == 'IEMOCAP':
-        with open('data/feature_vectors_IEMOCAP.pickle', 'wb') as f:
-            pickle.dump(feature_vectors, f)
-
-    elif args.dataset == 'RAVDESS':
-        with open('data/feature_vectors_RAV.pickle', 'wb') as f:
-            pickle.dump(feature_vectors, f)
-
-    # with open('data/feature_vectors_IEMOCAP.pickle', 'rb') as f:
-    #     feature_vectors = pickle.load(f)
-
-    # with open('data_new/feature_vectors_RAV.pickle', 'rb') as f:
-    #     feature_vectors = pickle.load(f)
-
+    elif args.create_TSNE_data == 'NO':
+        if args.dataset == 'IEMOCAP':
+            with open('data/feature_vectors_IEMOCAP.pickle', 'rb') as f:
+                feature_vectors = pickle.load(f)
+        elif args.dataset == 'RAVDESS':
+            with open('data/feature_vectors_RAV.pickle', 'rb') as f:
+                feature_vectors = pickle.load(f)
 
     print("calculated %d feature vectors" % len(feature_vectors))
 
@@ -71,11 +102,11 @@ def TSNE_features(args):
     plt.figure()
     sns.scatterplot(x_axis, y_axis, hue=df.emotion, legend='full', palette=palette)
     plt.legend(fontsize='x-large', title_fontsize='40')
-    plt.savefig(f'/home/dsi/shermad1/PycharmProjects/SER_git/results/%s_features.png' % args.datsset)
+    plt.savefig(f'/home/dsi/shermad1/PycharmProjects/SER_git/results/%s_features.png' % args.dataset)
     plt.show()
 
 
-# TSNE - for model
+# TSNE - for network
 def TSNE_model(args):
     # Opening the data files
     if args.dataset == "IEMOCAP":

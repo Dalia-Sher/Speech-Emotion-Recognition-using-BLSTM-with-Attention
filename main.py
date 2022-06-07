@@ -1,19 +1,9 @@
 
-from preprocessing import create_signal, extract_train_test
 from preprocessing import create_data
-# from preprocessing_ActNorm import create_data
 from model import create_model
 from TSNE import TSNE_features, TSNE_model
-from tensorflow.keras.optimizers import Adam
-from keras.optimizers import Adam
 from plotting import plotting_function, compare_results
-from sklearn.model_selection import StratifiedKFold
-import pandas as pd
-import matplotlib.pyplot as plt
 from pylab import *
-import seaborn as sns
-from sklearn.manifold import TSNE
-import warnings
 
 from argparse import ArgumentParser
 
@@ -51,7 +41,6 @@ os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import pickle
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
-from collections import Counter
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -126,10 +115,6 @@ def main(args):
     if args.model_load == 'NO':
         model.save_weights(f'models/last_%s_model_%s.h5' % (args.model_type, args.dataset))
 
-        # Evaluate the model
-        score = model.evaluate(X_test, y_test, verbose=0)
-        # score = model_best.evaluate(X_test, y_test, verbose=0)
-
         # Make predictions
         preds = model.predict(X_test)
         preds = preds.argmax(axis=1)
@@ -141,9 +126,6 @@ def main(args):
         # Loads the weights
         model_best.load_weights(f'models/best_%s_model_%s.h5' % (args.model_type, data))
 
-        # Evaluate the model
-        score = model_best.evaluate(X_test, y_test, verbose=0)
-
         # Make predictions
         preds = model_best.predict(X_test)
 
@@ -152,7 +134,6 @@ def main(args):
 
     # Plot relevant graphs
     model_dir = r'/home/dsi/shermad1/Emotion_Recognition/Models/project2_models/'
-    # plotting_function(model_dir, model_dir, model_dir, y_test_arr, preds, dic, model_type)
     plotting_function(model, model_dir, history, y_test_arr, preds, dic, args.model_type)
 
     # compare_results(y_test_arr, preds, dic)
@@ -164,14 +145,15 @@ if __name__ == '__main__':
     parser.add_argument('--create_data', default='NO', type=str, help='choosing to use existing data or create it: Yes or NO')
     parser.add_argument('--model_type', default='Attention', type=str, help='choosing model type: LSTM or BLSTM or Attention')
     parser.add_argument('--model_load', default='NO', type=str, help='creating to load model: Yes or NO')
-    parser.add_argument('--TSNE', default='NO', type=str, help='creating TSN: Yes or NO')
+    parser.add_argument('--create_TSNE_data', default='YES', type=str, help='choosing to use existing data or create it: Yes or NO')
+    parser.add_argument('--TSNE', default='YES', type=str, help='creating TSN: Yes or NO')
 
     args = parser.parse_args()
 
     main(args)
 
     if args.TSNE == 'YES':
-        # TSNE_features(args)
+        TSNE_features(args)
         TSNE_model(args)
 
 
