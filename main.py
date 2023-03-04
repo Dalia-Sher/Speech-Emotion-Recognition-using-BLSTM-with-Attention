@@ -57,7 +57,7 @@ def main(args):
     # Dictionary of emotion coding
     if args.dataset == "IEMOCAP":
         print('you chose args.dataset == "IEMOCAP"')
-        dic = {0: 'neutral', 1: 'angry', 2: 'happy', 3: 'sad'}  # IEMOCAP - 4 emotions   #IEMOCAP
+        dic = {0: 'neutral', 1: 'angry', 2: 'happy', 3: 'sad'}  #IEMOCAP
     elif args.dataset == "RAVDESS":
         print('you chose args.dataset == "RAVDESS"')
         dic = {1: 'neutral', 3: 'happy', 4: 'sad', 5: 'angry', 6: 'fear', 7: 'disgust', 8: 'surprise'}  # RAVDESS
@@ -205,4 +205,3 @@ if __name__ == '__main__':
     elif args.TSNE == 'YES':
         TSNE_features(args)
         TSNE_model(args)
-

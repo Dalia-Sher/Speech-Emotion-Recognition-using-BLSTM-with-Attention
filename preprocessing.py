@@ -70,6 +70,7 @@ def extract_mel_spect(y, sr=16000, n_fft=512, win_length=256, hop_length=128, wi
 
     return mel_spect
 
+# for kmeans
 def extract_mel_spect_kmeans(y, sr=16000, n_fft=512, win_length=256, hop_length=128, window='hamming', fmax=4000):
     # Compute stft
     stft = np.mean(np.abs(librosa.stft(y, n_fft=n_fft, window=window, win_length=win_length, hop_length=hop_length)) ** 2, axis=0)
@@ -107,6 +108,7 @@ def extract_get_audio_features(y, sr=16000, frame_length=512, duration=5):
         frames.append(f)
     return frames
 
+# for kmeans
 def extract_get_audio_features_kmeans(y, sr=16000, frame_length=512, duration=5):
     spectral_centroid = librosa.feature.spectral_centroid(y=y, sr=sr, hop_length=frame_length)
     spectral_contrast = librosa.feature.spectral_contrast(y=y, sr=sr, hop_length=frame_length)
@@ -140,12 +142,12 @@ def extract_train_test(args, signal_train, signal_test, labels_train, labels_tes
 
     print("Extracting Features: START")
     if args.dataset == 'IEMOCAP':
-        mel_spect_train = np.asarray(list(map(extract_get_audio_features_kmeans, signal_train)))  #IEMOCAP
-        mel_spect_test = np.asarray(list(map(extract_get_audio_features_kmeans, signal_test)))  # IEMOCAP
+        mel_spect_train = np.asarray(list(map(extract_get_audio_features, signal_train)))  #IEMOCAP
+        mel_spect_test = np.asarray(list(map(extract_get_audio_features, signal_test)))  # IEMOCAP
 
     elif args.dataset == 'RAVDESS':
-        mel_spect_train = np.asarray(list(map(extract_mel_spect_kmeans, signal_train)))         #RAVDESS
-        mel_spect_test = np.asarray(list(map(extract_mel_spect_kmeans, signal_test)))          #RAVDESS
+        mel_spect_train = np.asarray(list(map(extract_mel_spect, signal_train)))         #RAVDESS
+        mel_spect_test = np.asarray(list(map(extract_mel_spect, signal_test)))          #RAVDESS
 
     print('mel_spect_train.shape', mel_spect_train.shape)
     print('mel_spect_test.shape', mel_spect_test.shape)
