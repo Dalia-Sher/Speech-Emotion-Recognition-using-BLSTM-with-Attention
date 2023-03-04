@@ -5,7 +5,6 @@ import librosa
 import librosa.display
 import matplotlib.pyplot as plt
 import pandas as pd
-ax = plt.axes(projection='3d')
 from pylab import *
 import seaborn as sns
 sns.set(rc={'figure.figsize':(11.7,8.27)})
@@ -48,15 +47,23 @@ def TSNE_features(args):
 
     if args.dataset == 'IEMOCAP':
         print('you chose args.dataset == "IEMOCAP"')
-        with open('data/IEMOCAP_df.pickle', 'rb') as f:
-            df = pickle.load(f)
+        if args.reverberation == 'NO':
+            with open('data/IEMOCAP_df.pickle', 'rb') as f:
+                df = pickle.load(f)
+        elif args.reverberation == 'YES':
+            with open('data_IEMOCAP_rev/IEMOCAP_df.pickle', 'rb') as f:
+                df = pickle.load(f)
         colors = ['blue', 'red', 'green', 'orange']
         palette = sns.color_palette(colors)    #IEMOCAP
 
     elif args.dataset == 'RAVDESS':
         print('you chose args.dataset == "RAVDESS"')
-        with open('data/RAV_df.pickle', 'rb') as f:
-            df = pickle.load(f)
+        if args.reverberation == 'NO':
+            with open('data_RAV_16k/RAV_df_16k_good_split.pickle', 'rb') as f:
+                df = pickle.load(f)
+        elif args.reverberation == 'YES':
+            with open('data_reverberation_new/RAV_df.pickle', 'rb') as f:
+                df = pickle.load(f)
         palette = sns.color_palette("bright", 7)  # RAV
 
     print(df.head())
@@ -78,31 +85,49 @@ def TSNE_features(args):
             sound_paths.append(f)
 
         if args.dataset == 'IEMOCAP':
-            with open('data/feature_vectors_IEMOCAP.pickle', 'wb') as f:
-                pickle.dump(feature_vectors, f)
+            if args.reverberation == 'NO':
+                with open('data/feature_vectors_IEMOCAP.pickle', 'wb') as f:
+                    pickle.dump(feature_vectors, f)
+            elif args.reverberation == 'YES':
+                with open('data_IEMOCAP_rev/feature_vectors_IEMOCAP.pickle', 'wb') as f:
+                    pickle.dump(feature_vectors, f)
 
         elif args.dataset == 'RAVDESS':
-            with open('data/feature_vectors_RAV.pickle', 'wb') as f:
-                pickle.dump(feature_vectors, f)
+            if args.reverberation == 'NO':
+                with open('data/feature_vectors_RAV_16k.pickle', 'wb') as f:
+                    pickle.dump(feature_vectors, f)
+            elif args.reverberation == 'YES':
+                with open('data_reverberation_new/feature_vectors_RAV_16k.pickle', 'wb') as f:
+                    pickle.dump(feature_vectors, f)
 
     elif args.create_TSNE_data == 'NO':
         if args.dataset == 'IEMOCAP':
-            with open('data/feature_vectors_IEMOCAP.pickle', 'rb') as f:
-                feature_vectors = pickle.load(f)
-        elif args.dataset == 'RAVDESS':
-            with open('data/feature_vectors_RAV.pickle', 'rb') as f:
-                feature_vectors = pickle.load(f)
+            if args.reverberation == 'NO':
+                with open('data/feature_vectors_IEMOCAP.pickle', 'rb') as f:
+                    feature_vectors = pickle.load(f)
+            elif args.reverberation == 'YES':
+                with open('data_IEMOCAP_rev/feature_vectors_IEMOCAP.pickle', 'rb') as f:
+                    feature_vectors = pickle.load(f)
 
-    print("calculated %d feature vectors" % len(feature_vectors))
+        elif args.dataset == 'RAVDESS':
+            if args.reverberation == 'NO':
+                with open('data/feature_vectors_RAV_16k.pickle', 'rb') as f:
+                    feature_vectors = pickle.load(f)
+            elif args.reverberation == 'YES':
+                with open('data_reverberation_new/feature_vectors_RAV_16k.pickle', 'rb') as f:
+                    feature_vectors = pickle.load(f)
+
+    print('feature_vectors.shape', feature_vectors[0].shape)
+    print('len(feature_vectors)', len(feature_vectors))
 
     # 2D
     model = TSNE(n_components=2, learning_rate=150, perplexity=30, verbose=2, angle=0.1, random_state=1).fit_transform(feature_vectors)
     x_axis = model[:, 0]
     y_axis = model[:, 1]
     plt.figure()
-    sns.scatterplot(x_axis, y_axis, hue=df.emotion, legend='full', palette=palette)
+    sns.scatterplot(x_axis, y_axis, hue=df.emotion, legend='full', palette=palette, style=df.emotion)
     plt.legend(fontsize='x-large', title_fontsize='40')
-    plt.savefig(f'/home/dsi/shermad1/PycharmProjects/SER_git/results/%s_features.png' % args.dataset)
+    plt.savefig(f'/home/dsi/shermad1/PycharmProjects/SER_git/results/%s_features_rever_2.png' % args.dataset)
     plt.show()
 
 
@@ -110,34 +135,60 @@ def TSNE_features(args):
 def TSNE_model(args):
     # Opening the data files
     if args.dataset == "IEMOCAP":
-        print('you chose args.dataset == "IEMOCAP"')
-        with open('data/X_train_1_IEMOCAP.pickle', 'rb') as f:
-            X_train_1 = pickle.load(f)
-        with open('data/X_train_2_IEMOCAP.pickle', 'rb') as f:
-            X_train_2 = pickle.load(f)
-        with open('data/y_train_IEMOCAP.pickle', 'rb') as f:
-            y_train = pickle.load(f)
-        with open('data/X_test_IEMOCAP.pickle', 'rb') as f:
-            X_test = pickle.load(f)
-        with open('data/y_test_IEMOCAP.pickle', 'rb') as f:
-            y_test = pickle.load(f)
-        X_train = np.concatenate((X_train_1, X_train_2))
+        if args.reverberation == 'NO':
+            print('you chose args.dataset == "IEMOCAP"')
+            with open('data/X_train_1_IEMOCAP.pickle', 'rb') as f:
+                X_train_1 = pickle.load(f)
+            with open('data/X_train_2_IEMOCAP.pickle', 'rb') as f:
+                X_train_2 = pickle.load(f)
+            with open('data/y_train_IEMOCAP.pickle', 'rb') as f:
+                y_train = pickle.load(f)
+            with open('data/X_test_IEMOCAP.pickle', 'rb') as f:
+                X_test = pickle.load(f)
+            with open('data/y_test_IEMOCAP.pickle', 'rb') as f:
+                y_test = pickle.load(f)
+        elif args.reverberation == 'YES':
+            with open('data_IEMOCAP_rev/X_train_1_IEMOCAP.pickle', 'rb') as f:
+                X_train_1 = pickle.load(f)
+            with open('data_IEMOCAP_rev/X_train_2_IEMOCAP.pickle', 'rb') as f:
+                X_train_2 = pickle.load(f)
+            with open('data_IEMOCAP_rev/y_train_IEMOCAP.pickle', 'rb') as f:
+                y_train = pickle.load(f)
+            with open('data_IEMOCAP_rev/X_test_IEMOCAP.pickle', 'rb') as f:
+                X_test = pickle.load(f)
+            with open('data_IEMOCAP_rev/y_test_IEMOCAP.pickle', 'rb') as f:
+                y_test = pickle.load(f)
 
     elif args.dataset == "RAVDESS":
-        print('you chose args.dataset == "RAVDESS"')
-        with open('data/X_train_1_RAVDESS_new.pickle', 'rb') as f:
-            X_train_1 = pickle.load(f)
-        with open('data/X_train_2_RAVDESS_new.pickle', 'rb') as f:
-            X_train_2 = pickle.load(f)
-        with open('data/y_train_RAVDESS_new.pickle', 'rb') as f:
-            y_train = pickle.load(f)
-        with open('data/X_test_RAVDESS_new.pickle', 'rb') as f:
-            X_test = pickle.load(f)
-        with open('data/y_test_RAVDESS_new.pickle', 'rb') as f:
-            y_test = pickle.load(f)
-        X_train = np.concatenate((X_train_1, X_train_2))
+        if args.reverberation == 'NO':
+            print('you chose args.dataset == "RAVDESS"')
+            with open('data_RAV_16k/X_train_1_RAVDESS.pickle', 'rb') as f:
+                X_train_1 = pickle.load(f)
+            with open('data_RAV_16k/X_train_2_RAVDESS.pickle', 'rb') as f:
+                X_train_2 = pickle.load(f)
+            with open('data_RAV_16k/y_train_RAVDESS.pickle', 'rb') as f:
+                y_train = pickle.load(f)
+            with open('data_RAV_16k/X_test_RAVDESS.pickle', 'rb') as f:
+                X_test = pickle.load(f)
+            with open('data_RAV_16k/y_test_RAVDESS.pickle', 'rb') as f:
+                y_test = pickle.load(f)
+        elif args.reverberation == 'YES':
+            with open('data_reverberation/X_train_1_RAVDESS.pickle', 'rb') as f:
+                X_train_1 = pickle.load(f)
+            with open('data_reverberation/X_train_2_RAVDESS.pickle', 'rb') as f:
+                X_train_2 = pickle.load(f)
+            with open('data_reverberation/y_train_RAVDESS.pickle', 'rb') as f:
+                y_train = pickle.load(f)
+            with open('data_reverberation/X_test_RAVDESS.pickle', 'rb') as f:
+                X_test = pickle.load(f)
+            with open('data_reverberation/y_test_RAVDESS.pickle', 'rb') as f:
+                y_test = pickle.load(f)
+
+    X_train = np.concatenate((X_train_1, X_train_2))
 
     # load Model
+    print('X_train.shape', X_train.shape)
+    print('y_train.shape', y_train.shape)
     model_for_tsne = create_model(X_train, y_train, args.model_type, last_layer=False)
     print(model_for_tsne.summary())
 
@@ -149,7 +200,8 @@ def TSNE_model(args):
         d = {0: 'neutral', 1: 'angry', 2: 'happy', 3: 'sad'}  # IEMOCAP
 
     elif args.dataset == "RAVDESS":
-        model_for_tsne.load_weights('models/best_%s_model_%s.h5' % (args.model_type, args.dataset), by_name=True) #RAVSESS
+        model_for_tsne.load_weights('models/best_%s_model_%s_16k_good_s_5conv.h5' % (args.model_type, args.dataset), by_name=True) #RAVSESS
+        #model_for_tsne.load_weights('/home/dsi/shermad1/PycharmProjects/SER/models/best_Attention_model_RAV.h5', by_name=True)
         palette = sns.color_palette("bright", 7)    #RAV
         d = {0: 'neutral', 1: 'happy', 2: 'sad', 3: 'angry', 4: 'fear', 5: 'disgust', 6: 'surprise'} #RAVDESS
 
@@ -160,19 +212,20 @@ def TSNE_model(args):
     # TSNE to all data
     X_train = np.concatenate((X_train, X_test))
     z = model_for_tsne.predict(X_train)
+    print('z.shape', z.shape)
     y_train = np.concatenate((y_train, y_test))
     y_test_arr = np.array([np.where(r == 1)[0][0] for r in y_train])
     emotions_name = (pd.Series(y_test_arr)).map(d)
     emotions_name = list(emotions_name)
-    print(emotions_name)
     z_list = z.tolist()
 
     model = TSNE(n_components=2, learning_rate=150, perplexity=30, verbose=2, angle=0.1, random_state=2).fit_transform(
         z_list)
     x_axis = model[:, 0]
     y_axis = model[:, 1]
+
     plt.figure()
-    sns.scatterplot(x_axis, y_axis, hue=emotions_name, legend='full', palette=palette)
+    sns.scatterplot(x_axis, y_axis, hue=emotions_name, legend='full', palette=palette, style=emotions_name)
     plt.legend(fontsize='x-large', title_fontsize='40')
-    plt.savefig(f'/home/dsi/shermad1/PycharmProjects/SER_git/results/%s_network.png' % args.dataset)
+    plt.savefig(f'/home/dsi/shermad1/PycharmProjects/SER_git/results/%s_network_5conv_1702.png' % args.dataset)
     plt.show()

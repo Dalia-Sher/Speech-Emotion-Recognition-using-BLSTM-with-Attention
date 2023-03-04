@@ -4,6 +4,7 @@ from create_dataFrame import create_IEMOCAP_name_files, create_RAV_name_files
 import pickle
 from collections import Counter
 import numpy as np
+import pandas as pd
 import librosa
 import math
 from keras import backend as K
@@ -69,6 +70,15 @@ def extract_mel_spect(y, sr=16000, n_fft=512, win_length=256, hop_length=128, wi
 
     return mel_spect
 
+def extract_mel_spect_kmeans(y, sr=16000, n_fft=512, win_length=256, hop_length=128, window='hamming', fmax=4000):
+    # Compute stft
+    stft = np.mean(np.abs(librosa.stft(y, n_fft=n_fft, window=window, win_length=win_length, hop_length=hop_length)) ** 2, axis=0)
+
+    # Compute log-mel spectrogram - 128
+    mel_spect = librosa.feature.melspectrogram(S=stft, sr=sr, n_mels=128, fmax=fmax)
+    mel_spect = librosa.power_to_db(mel_spect, ref=np.max)
+
+    return mel_spect
 
 def extract_get_audio_features(y, sr=16000, frame_length=512, duration=5):
     N_FRAMES = math.ceil(sr * duration / frame_length)
@@ -83,7 +93,7 @@ def extract_get_audio_features(y, sr=16000, frame_length=512, duration=5):
     mfcc = librosa.feature.mfcc(y=y, sr=sr, hop_length=frame_length)
     mfcc_der = librosa.feature.delta(mfcc)
     for i in range(N_FRAMES):
-        f=[]
+        f = []
         f.append(spectral_centroid[i])
         f.append(spectral_contrast[i])
         f.append(spectral_bandwidth[i])
@@ -96,6 +106,24 @@ def extract_get_audio_features(y, sr=16000, frame_length=512, duration=5):
             f.append(m_coeff_der)
         frames.append(f)
     return frames
+
+def extract_get_audio_features_kmeans(y, sr=16000, frame_length=512, duration=5):
+    spectral_centroid = librosa.feature.spectral_centroid(y=y, sr=sr, hop_length=frame_length)
+    spectral_contrast = librosa.feature.spectral_contrast(y=y, sr=sr, hop_length=frame_length)
+    spectral_bandwidth = librosa.feature.spectral_bandwidth(y=y, sr=sr, hop_length=frame_length)
+    spectral_rolloff = librosa.feature.spectral_rolloff(y=y, sr=sr, hop_length=frame_length)
+    zero_crossing_rate = librosa.feature.zero_crossing_rate(y, hop_length=frame_length)
+    S, phase = librosa.magphase(librosa.stft(y=y, hop_length=frame_length))
+    rms = librosa.feature.rms(y=y, hop_length=frame_length, S=S)
+    mfcc = librosa.feature.mfcc(y=y, sr=sr, hop_length=frame_length)
+    mfcc_der = librosa.feature.delta(mfcc)
+
+    feature_vector = np.concatenate((np.mean(spectral_centroid,1), np.mean(spectral_contrast,1), np.mean(rms,1),
+                                     np.mean(spectral_bandwidth,1), np.mean(spectral_rolloff,1), np.mean(mfcc,1),
+                                     np.mean(zero_crossing_rate,1), np.mean(mfcc_der,1)))
+
+    return feature_vector
+
 
 
 # Split spectrogram into frames
@@ -112,12 +140,12 @@ def extract_train_test(args, signal_train, signal_test, labels_train, labels_tes
 
     print("Extracting Features: START")
     if args.dataset == 'IEMOCAP':
-        mel_spect_train = np.asarray(list(map(extract_get_audio_features, signal_train)))  #IEMOCAP
-        mel_spect_test = np.asarray(list(map(extract_get_audio_features, signal_test)))  # IEMOCAP
+        mel_spect_train = np.asarray(list(map(extract_get_audio_features_kmeans, signal_train)))  #IEMOCAP
+        mel_spect_test = np.asarray(list(map(extract_get_audio_features_kmeans, signal_test)))  # IEMOCAP
 
     elif args.dataset == 'RAVDESS':
-        mel_spect_train = np.asarray(list(map(extract_mel_spect, signal_train)))         #RAVDESS
-        mel_spect_test = np.asarray(list(map(extract_mel_spect, signal_test)))          #RAVDESS
+        mel_spect_train = np.asarray(list(map(extract_mel_spect_kmeans, signal_train)))         #RAVDESS
+        mel_spect_test = np.asarray(list(map(extract_mel_spect_kmeans, signal_test)))          #RAVDESS
 
     print('mel_spect_train.shape', mel_spect_train.shape)
     print('mel_spect_test.shape', mel_spect_test.shape)
@@ -138,6 +166,7 @@ def extract_train_test(args, signal_train, signal_test, labels_train, labels_tes
 
     print('X_train.shape bafore framing:', X_train.shape)
 
+    # remove this for k-means
     if args.dataset == 'RAVDESS':
     # Frame for TimeDistributed model
         hop_ts = 64
@@ -168,17 +197,39 @@ def create_data(dic, args):
     SPLIT = 'False'
     ts = 0.2
 
-    if args.dataset == 'IEMOCAP':
-        df, labels_train, labels_test = create_IEMOCAP_name_files(SPLIT, ts, dic)  #IEMOCAP
+    if args.dataset == 'IEMOCAP' and args.reverberation == 'NO':
+        df, labels_train, labels_test = create_IEMOCAP_name_files(args, SPLIT, ts, dic)  #IEMOCAP
+        with open('data/IEMOCAP_df.pickle', 'wb') as f:
+            pickle.dump(df, f)
 
-    elif args.dataset == 'RAVDESS':
-        df, labels_train, labels_test = create_RAV_name_files(SPLIT, ts)     #RAVDESS
+    elif args.dataset == 'IEMOCAP' and args.reverberation == 'YES':
+        df, labels_train, labels_test = create_IEMOCAP_name_files(args, SPLIT, ts, dic)  #IEMOCAP
+        with open('data_rev_ohad/IEMOCAP_df.pickle', 'wb') as f:
+            pickle.dump(df, f)
+
+    elif args.dataset == 'RAVDESS' and args.reverberation == 'NO':
+        # df, labels_train, labels_test = create_RAV_name_files(args, SPLIT, ts)     #RAVDESS
+        # with open('data_RAV_16k/RAV_df.pickle', 'wb') as f:
+        #     pickle.dump(df, f)
+        _, labels_train, labels_test = create_RAV_name_files(args, SPLIT, ts)     #RAVDESS
+        with open("data_RAV_16k/RAV_df_16k_good_split.pickle", "rb") as f:
+            object = pickle.load(f)
+        df = pd.DataFrame(object)
+
+    elif args.dataset == 'RAVDESS' and args.reverberation == 'YES':
+        df, labels_train, labels_test = create_RAV_name_files(args, SPLIT, ts)     #RAVDESS
+        with open('data_reverberation_new/RAV_df.pickle', 'wb') as f:
+            pickle.dump(df, f)
 
     print('dictionary:', dic)
     print('num of train labels:', Counter(labels_train))
     print('num of test labels:', Counter(labels_test))
 
     # Creating a signal
+    # if args.dataset == 'RAVDESS':
+    #     sr = 48000
+    # elif args.dataset == 'IEMOCAP':
+    #     sr = 16000  # Sample rate (16.0 kHz)
     sr = 16000  # Sample rate (16.0 kHz)
     duration = 5  # Max pad length (5.0 sec)
     print("Creating Signal: START")
@@ -191,35 +242,79 @@ def create_data(dic, args):
     X_train, X_test, y_train, y_test = extract_train_test(args, signal_train, signal_test, labels_train, labels_test)
 
     def save_train_test(args):
-        if args.dataset == 'IEMOCAP':
-            with open('data/X_train_1_IEMOCAP.pickle', 'wb') as f:
+        if args.dataset == 'IEMOCAP'  and args.reverberation == 'NO':
+            with open('data_diff_features/X_train_1_IEMOCAP_f36.pickle', 'wb') as f:
                 pickle.dump(X_train[:int(X_train.shape[0]/2), :, :, :, :], f)
-            with open('data/X_train_2_IEMOCAP.pickle', 'wb') as f:
+            with open('data_diff_features/X_train_2_IEMOCAP_f36.pickle', 'wb') as f:
                 pickle.dump(X_train[int(X_train.shape[0]/2):, :, :, :, :], f)
-            with open('data/y_train_IEMOCAP.pickle', 'wb') as f:
+            with open('data_diff_features/y_train_IEMOCAP_f36.pickle', 'wb') as f:
                 pickle.dump(y_train, f)
-            with open('data/X_test_IEMOCAP.pickle', 'wb') as f:
+            with open('data_diff_features/X_test_IEMOCAP_f36.pickle', 'wb') as f:
                 pickle.dump(X_test, f)
-            with open('data/y_test_IEMOCAP.pickle', 'wb') as f:
+            with open('data_diff_features/y_test_IEMOCAP_f36.pickle', 'wb') as f:
                 pickle.dump(y_test, f)
 
-        elif args.dataset == 'RAVDESS':
-            with open('data/X_train_1_RAVDESS.pickle', 'wb') as f:
-                pickle.dump(X_train[:int(X_train.shape[0]/2),:, :, :, :], f)
-            with open('data/X_train_2_RAVDESS.pickle', 'wb') as f:
-                pickle.dump(X_train[int(X_train.shape[0]/2):,:, :, :, :], f)
-            with open('data/y_train_RAVDESS.pickle', 'wb') as f:
+        # if args.dataset == 'IEMOCAP'  and args.reverberation == 'NO':
+        #     with open('data_kmeans/X_train_1_IEMOCAP.pickle', 'wb') as f:
+        #         pickle.dump(X_train[:int(X_train.shape[0]/2), :], f)
+        #     with open('data_kmeans/X_train_2_IEMOCAP.pickle', 'wb') as f:
+        #         pickle.dump(X_train[int(X_train.shape[0]/2):, :], f)
+        #     with open('data_kmeans/y_train_IEMOCAP.pickle', 'wb') as f:
+        #         pickle.dump(y_train, f)
+        #     with open('data_kmeans/X_test_IEMOCAP.pickle', 'wb') as f:
+        #         pickle.dump(X_test, f)
+        #     with open('data_kmeans/y_test_IEMOCAP.pickle', 'wb') as f:
+        #         pickle.dump(y_test, f)
+
+        elif args.dataset == 'IEMOCAP'  and args.reverberation == 'YES':
+            with open('data_rev_ohad/X_train_1_IEMOCAP.pickle', 'wb') as f:
+                pickle.dump(X_train[:int(X_train.shape[0] / 2), :, :, :, :], f)
+            with open('data_rev_ohad/X_train_2_IEMOCAP.pickle', 'wb') as f:
+                pickle.dump(X_train[int(X_train.shape[0] / 2):, :, :, :, :], f)
+            with open('data_rev_ohad/y_train_IEMOCAP.pickle', 'wb') as f:
                 pickle.dump(y_train, f)
-            with open('data/X_test_RAVDESS.pickle', 'wb') as f:
+            with open('data_rev_ohad/X_test_IEMOCAP.pickle', 'wb') as f:
                 pickle.dump(X_test, f)
-            with open('data/y_test_RAVDESS.pickle', 'wb') as f:
+            with open('data_rev_ohad/y_test_IEMOCAP.pickle', 'wb') as f:
+                pickle.dump(y_test, f)
+
+        elif args.dataset == 'RAVDESS' and args.reverberation == 'NO':
+            with open('data_RAV_16k/X_train_1_RAVDESS.pickle', 'wb') as f:
+                pickle.dump(X_train[:int(X_train.shape[0]/2),:, :, :, :], f)
+            with open('data_RAV_16k/X_train_2_RAVDESS.pickle', 'wb') as f:
+                pickle.dump(X_train[int(X_train.shape[0]/2):,:, :, :, :], f)
+            with open('data_RAV_16k/y_train_RAVDESS.pickle', 'wb') as f:
+                pickle.dump(y_train, f)
+            with open('data_RAV_16k/X_test_RAVDESS.pickle', 'wb') as f:
+                pickle.dump(X_test, f)
+            with open('data_RAV_16k/y_test_RAVDESS.pickle', 'wb') as f:
+                pickle.dump(y_test, f)
+
+        # elif args.dataset == 'RAVDESS' and args.reverberation == 'NO':
+        #     with open('data_kmeans/X_train_1_RAVDESS.pickle', 'wb') as f:
+        #         pickle.dump(X_train[:int(X_train.shape[0]/2),:], f)
+        #     with open('data_kmeans/X_train_2_RAVDESS.pickle', 'wb') as f:
+        #         pickle.dump(X_train[int(X_train.shape[0]/2):], f)
+        #     with open('data_kmeans/y_train_RAVDESS.pickle', 'wb') as f:
+        #         pickle.dump(y_train, f)
+        #     with open('data_kmeans/X_test_RAVDESS.pickle', 'wb') as f:
+        #         pickle.dump(X_test, f)
+        #     with open('data_kmeans/y_test_RAVDESS.pickle', 'wb') as f:
+        #         pickle.dump(y_test, f)
+
+        elif args.dataset == 'RAVDESS' and args.reverberation == 'YES':
+            with open('data_reverberation_new/X_train_1_RAVDESS.pickle', 'wb') as f:
+                pickle.dump(X_train[:int(X_train.shape[0]/2),:, :, :, :], f)
+            with open('data_reverberation_new/X_train_2_RAVDESS.pickle', 'wb') as f:
+                pickle.dump(X_train[int(X_train.shape[0]/2):,:, :, :, :], f)
+            with open('data_reverberation_new/y_train_RAVDESS.pickle', 'wb') as f:
+                pickle.dump(y_train, f)
+            with open('data_reverberation_new/X_test_RAVDESS.pickle', 'wb') as f:
+                pickle.dump(X_test, f)
+            with open('data_reverberation_new/y_test_RAVDESS.pickle', 'wb') as f:
                 pickle.dump(y_test, f)
 
     if args.create_data == 'YES':
         save_train_test(args)
 
     return X_train, y_train, X_test, y_test
-
-
-
-

@@ -2,13 +2,14 @@
 # Import relevant libraries
 import os
 import re
+import pickle
 import numpy as np
 from sklearn.model_selection import train_test_split
 import pandas as pd
 
 
 # Function to create dataframe with paths to the files
-def create_IEMOCAP_name_files(SPLIT, ts, d):
+def create_IEMOCAP_name_files(args, SPLIT, ts, d):
     info_line = re.compile(r'\[.+\]\n', re.IGNORECASE)
     path, emotions, names_train, names_test = [], [], [], []
 
@@ -23,22 +24,30 @@ def create_IEMOCAP_name_files(SPLIT, ts, d):
             for line in info_lines[1:]:  # the first line is a header
                 _, wav_file_name, emotion, _ = line.strip().split('\t')
 
+                if args.reverberation == 'YES':
+                    print('you chose args.reverberation == "YES"')
+                    # path_new = '/home/dsi/shermad1/Emotion_Recognition/Data/Reverberation_data/rever_data_IEMOCAP/'
+                    path_new = '/dsi/gannot-lab/datasets/Ohad/IEMOCAP_rev_16k/ALL/ALL/'
+
+                elif args.reverberation == 'NO':
+                    path_new = "/home/dsi/shermad1/Emotion_Recognition/Data/IEMOCAP_flat/ALL/"
+
                 if emotion == 'neu':
                     emotions.append(0)
                     path.append(
-                        "/home/dsi/shermad1/Emotion_Recognition/Data/IEMOCAP_flat/ALL/" + wav_file_name + ".wav")
+                        path_new + wav_file_name + ".wav")
                 if emotion == 'ang':
                     emotions.append(1)
                     path.append(
-                        "/home/dsi/shermad1/Emotion_Recognition/Data/IEMOCAP_flat/ALL/" + wav_file_name + ".wav")
+                        path_new + wav_file_name + ".wav")
                 elif emotion == 'hap' or emotion == 'exc':
                     emotions.append(2)
                     path.append(
-                        "/home/dsi/shermad1/Emotion_Recognition/Data/IEMOCAP_flat/ALL/" + wav_file_name + ".wav")
+                        path_new + wav_file_name + ".wav")
                 elif emotion == 'sad':
-                    emotions.append(3)  # to change to 1 when 3 emotions
+                    emotions.append(3)
                     path.append(
-                        "/home/dsi/shermad1/Emotion_Recognition/Data/IEMOCAP_flat/ALL/" + wav_file_name + ".wav")
+                        path_new + wav_file_name + ".wav")
 
     labels = np.asarray(emotions).ravel()
 
@@ -82,8 +91,13 @@ def create_IEMOCAP_name_files(SPLIT, ts, d):
     return df_iemocap, labels_train, labels_test
 
 
-def create_RAV_name_files(SPLIT, ts):
-    path = '/home/dsi/shermad1/Emotion_Recognition/Data/SER/'            #RAVDESS
+def create_RAV_name_files(args, SPLIT, ts):
+    if args.reverberation == 'YES':
+        print('you chose args.reverberation == "YES"')
+        path = "/home/dsi/shermad1/Emotion_Recognition/Data/Reverberation_data/rever_data_RAV_new/"
+    elif args.reverberation == 'NO':
+        path = '/home/dsi/shermad1/Emotion_Recognition/Data/SER/'            #RAVDESS
+        # path = '/home/dsi/shermad1/Emotion_Recognition/Data/RAV_16k/'         #RAVDESS 16k
     dir_list = os.listdir(path)
     dir_list.sort()
 
@@ -157,9 +171,4 @@ def create_RAV_name_files(SPLIT, ts):
         labels_test = np.asarray(emotions_test).ravel()
 
     return RAV_df, labels_train, labels_test
-
-
-
-
-
 

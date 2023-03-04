@@ -3,6 +3,7 @@
 import keras
 from keras.regularizers import l1
 import numpy as np
+import tensorflow as tf
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, Dense, Dropout, Activation, TimeDistributed
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, BatchNormalization, Flatten
@@ -43,6 +44,13 @@ def create_model(X_train, y_train, model_type, last_layer=True):
     y = TimeDistributed(MaxPooling2D(pool_size=(4, 4), strides=(4, 4), padding='same'), name='MaxPool_4_MELSPECT')(y)
     y = TimeDistributed(Dropout(0.2), name='Drop_4_MELSPECT')(y)
 
+    # # Fifth LFLB (local feature learning block)
+    # y = TimeDistributed(Conv2D(128, kernel_size=(3, 3), strides=(1, 1), padding='same'), name='Conv_5_MELSPECT')(y)
+    # y = TimeDistributed(BatchNormalization(), name='BatchNorm_5_MELSPECT')(y)
+    # y = TimeDistributed(Activation('elu'), name='Activ_5_MELSPECT')(y)
+    # y = TimeDistributed(MaxPooling2D(pool_size=(4, 4), strides=(4, 4), padding='same'), name='MaxPool_5_MELSPECT')(y)
+    # y = TimeDistributed(Dropout(0.2), name='Drop_5_MELSPECT')(y)
+
     # Flattening
     y = TimeDistributed(Flatten(), name='Flat_MELSPECT')(y)
 
@@ -73,15 +81,16 @@ def create_model(X_train, y_train, model_type, last_layer=True):
 
     # FC layer
     if last_layer:
-        # The classification layer
         y = Dense(y_train.shape[1], activation='softmax', name='FC')(context_vector)
     else:
-        # Skipping the last layer in favor of T-SNE visualization
         y = context_vector
 
     # Build final model
     model = Model(inputs=input_y, outputs=y)
+    # opt = SGD(lr=0.01, decay=1e-6, momentum=0.99)
+    # opt = RMSprop(learning_rate=0.0001, rho=0.9, momentum=0.0, decay=1e-6)
     opt = Adam(learning_rate=0.0001)
     model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=['accuracy'])
 
     return model
+
