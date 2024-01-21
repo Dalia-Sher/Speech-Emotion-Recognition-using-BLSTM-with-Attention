@@ -7,12 +7,12 @@ import numpy as np
 import pandas as pd
 
 
-# # Move IEMOCAP files all to one directory
-# new_path = "/home/dsi/shermad1/Emotion_Recognition/Data/IEMOCAP_flat/ALL/"
-#
-# for file in glob.glob("/home/dsi/shermad1/Emotion_Recognition/Data/IEMOCAP/IEMOCAP_full_release/*/sentences/wav/*/*.wav"):
-#     print(file)
-#     shutil.move(file, new_path)
+# Move IEMOCAP files all to one directory
+new_path = "/home/dsi/shermad1/Emotion_Recognition/Data/IEMOCAP_flat/ALL/"
+
+for file in glob.glob("/home/dsi/shermad1/Emotion_Recognition/Data/IEMOCAP/IEMOCAP_full_release/*/sentences/wav/*/*.wav"):
+    print(file)
+    shutil.move(file, new_path)
 
 # Convert RAVDESS from 48k to 16k
 with open('data/RAV_df.pickle', 'rb') as f:
